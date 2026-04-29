@@ -35,8 +35,29 @@ def countdown():
     pool_json = json.dumps(pool[:40])
 
     overlay = st.empty()
+    audio_player = st.empty()
+
+    def play_sound(file_path):
+        import base64
+        import time
+        try:
+            with open(file_path, "rb") as f:
+                data = f.read()
+                b64 = base64.b64encode(data).decode()
+                mime = "audio/mp3" if file_path.endswith(".mp3") else "audio/wav"
+                ts = int(time.time() * 1000)
+                audio_player.markdown(
+                    f'<audio id="aud_{ts}" autoplay style="display:none;"><source src="data:{mime};base64,{b64}" type="{mime}"></audio>',
+                    unsafe_allow_html=True
+                )
+        except Exception:
+            pass
+
+    def stop_sound():
+        audio_player.empty()
 
     for num, label in [("5", "GET READY"), ("4", "GET READY"), ("3", "PLACE YOUR BETS"), ("2", "PLACE YOUR BETS"), ("1", "NO MORE BETS")]:
+        play_sound("assets/tick.mp3")
         overlay.markdown(
             f"""
             <div id="ld-overlay">
@@ -197,11 +218,18 @@ def countdown():
         )
         time.sleep(0.8)
 
+    stop_sound()  # Ensure tick sound stops completely before spin
     import random as _rand
     start_spin = time.time()
     spin_duration = 3.5
+    last_spin_audio = 0
     
     while time.time() - start_spin < spin_duration:
+        current_time = time.time()
+        if current_time - last_spin_audio >= 1.5:
+            play_sound("assets/spin.mp3")
+            last_spin_audio = current_time
+
         display_name = _rand.choice(pool) if pool else "✦"
         
         # We use a slightly simplified version of the overlay for the spinning loop
@@ -342,10 +370,13 @@ def countdown():
             </style>
             """,
             unsafe_allow_html=True,
+            
         )
+        # Audio stop removed from loop to prevent overlapping/cutting off
         time.sleep(0.08) # ~12 FPS for smooth spinning appearance
 
-
+    stop_sound()
+    play_sound("assets/win.mp3")
     winner = pre_winner or st.session_state.get("current_winner", None)
 
     if winner:
@@ -596,3 +627,4 @@ def countdown():
         time.sleep(5.5)
 
     overlay.empty()
+    stop_sound()
